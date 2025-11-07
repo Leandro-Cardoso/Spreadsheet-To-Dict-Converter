@@ -4,7 +4,7 @@ Recebe um arquivo do tipo **xlsx**,  **xls**, Excel ou arquivos **CSV** e conver
 
 ## Funções:
 
-* spreadsheet_to_dict(**parametros**):
+### spreadsheet_cols_to_dict():
 
     Recebe um arquivo do tipo xlsx, xls, Excel ou arquivos CSV e converte para um dicionário. Identifica automaticamente os dados de acordo com a posição dos cabeçalhos.
 
@@ -18,13 +18,41 @@ Recebe um arquivo do tipo **xlsx**,  **xls**, Excel ou arquivos **CSV** e conver
 
         Nome da aba da planilha.
 
-    * horizontal_headers:
+    * headers:
 
-        Lista com os nomes dos cabeçalhos dos quais os dados estão organizados na direção horizontal.
+        Lista com os nomes dos cabeçalhos das colunas.
 
-    * vertical_headers:
+    * end_row:
     
-        Lista com os nomes dos cabeçalhos dos quais os dados estão organizados na direção vertical.
+        Ultima linha a ser considerada das colunas.
+
+    ### Retornos:
+
+    * dict:
+
+        Retorna um dicionário com a estrutura de chave com os cabeçalhos da planilha e o valor de cada chave é uma lista com os valores relacionados ao cabeçalho.
+
+### spreadsheet_rows_to_dict():
+
+    Recebe um arquivo do tipo xlsx, xls, Excel ou arquivos CSV e converte para um dicionário. Identifica automaticamente os dados de acordo com a posição dos cabeçalhos.
+
+    ### Parametros:
+
+    * file_path:
+
+        Caminho completo da planilha, incluindo a extensão.
+
+    * ws_name:
+
+        Nome da aba da planilha.
+
+    * headers:
+
+        Lista com os nomes dos cabeçalhos das linhas.
+
+    * end_col:
+    
+        Ultima coluna a ser considerada das linhas.
 
     ### Retornos:
 

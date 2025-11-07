@@ -19,6 +19,7 @@ def _get_cel_coordinate(ws, value) -> str:
 
     raise FileNotFoundError('Valor da celula não encontrado na tabela.')
 
+#|--------------------------------------------------------------|
 def _is_col_none(ws, col_letter: str) -> bool:
     '''
     Verifica se a coluna está vazia.
@@ -29,6 +30,7 @@ def _is_col_none(ws, col_letter: str) -> bool:
     
     return True
 
+#|--------------------------------------------------------------|
 def _is_row_none(ws, row: int) -> bool:
     '''
     Verifica se a linha está vazia.
@@ -41,28 +43,12 @@ def _is_row_none(ws, row: int) -> bool:
     
     return True
 
-def _get_row_values(ws, header_value, stop_values: list) -> list:
-    '''
-    Pega todos os valores de uma linha a partir de um cabeçalho.
-    '''
-    cel_header = ws[_get_cel_coordinate(ws, header_value)]
-    col_values = []
-
-    for col_index in range(cel_header.column + 1, ws.max_column + 1): 
-        col_letter = get_column_letter(col_index)
-        col_value = ws[f'{col_letter}{cel_header.row}'].value
-
-        if _is_col_none(ws, col_letter):
-            continue
-        
-        if col_value in stop_values:
-            break
-        
-        col_values.append(col_value)
-
-    return col_values
-
-def _get_col_values(ws, header_value, stop_values: list) -> list:
+#|--------------------------------------------------------------|
+def _get_col_values(
+        ws,
+        header_value,
+        end_row: int = None
+) -> list:
     '''
     Pega todos os valores de uma coluna a partir de um cabeçalho.
     '''
@@ -71,27 +57,54 @@ def _get_col_values(ws, header_value, stop_values: list) -> list:
     col_number = int(re.sub(r'[^0-9]', '', cel_header))
     col_values = []
 
-    for row in range(col_number + 1, ws.max_row + 1):
+    if not end_row:
+        end_row = ws.max_row
+
+    for row in range(col_number + 1, end_row + 1):
         cel_value = ws[f'{col_letter}{row}'].value
 
         if _is_row_none(ws, row):
             continue
-
-        if cel_value in stop_values:
-            break
 
         col_values.append(cel_value)
 
     return col_values
 
 #|--------------------------------------------------------------|
+def _get_row_values(
+        ws,
+        header_value,
+        end_col: int = None
+) -> list:
+    '''
+    Pega todos os valores de uma linha a partir de um cabeçalho.
+    '''
+    cel_header = ws[_get_cel_coordinate(ws, header_value)]
+    col_values = []
+
+    if not end_col:
+        end_col = ws.max_column
+
+    for col_index in range(cel_header.column + 1, end_col + 1): 
+        col_letter = get_column_letter(col_index)
+        col_value = ws[f'{col_letter}{cel_header.row}'].value
+
+        if _is_col_none(ws, col_letter):
+            continue
+        
+        col_values.append(col_value)
+
+    return col_values
+
+#|--------------------------------------------------------------|
 #| MAIN FUNCTIONS:
 #|--------------------------------------------------------------|
-def spreadsheet_to_dict(
+# Tabela organizada em "COLUNAS":
+def spreadsheet_cols_to_dict(
         file_path: str,
         ws_name: str,
-        horizontal_headers: list = [],
-        vertical_headers: list = []
+        headers: list,
+        end_row: int = None
 ) -> dict:
     '''
     Recebe um arquivo do tipo xlsx, xls, Excel ou arquivos CSV e converte para um dicionário. Identifica automaticamente os dados de acordo com a posição dos cabeçalhos.
@@ -103,34 +116,55 @@ def spreadsheet_to_dict(
     if not is_valid_file_path(file_path, allowed_extensions):
         raise FileNotFoundError('Caminho do arquivo ou extensão invalida.')
     
-    if not horizontal_headers and not vertical_headers:
-        raise ValueError('É necessario informar ao menos uma das listas de cabeçalhos (headers).')
+    if not headers:
+        raise ValueError('É necessario informar ao menos um dos cabeçalhos (headers).')
     
-    if has_duplicates(horizontal_headers + vertical_headers):
+    if has_duplicates(headers):
         raise ValueError('Não pode haver mais de um cabeçalho (header) com o mesmo nome.')
     
     # Buscar dados:
     wb = load_workbook(file_path, data_only=True)
     ws = wb[ws_name]
 
-    if vertical_headers:
-        # Dados em linhas:
-        for header in vertical_headers:
-            new_dict[str(header).upper()] = _get_row_values(ws, header, vertical_headers)
+    for header in headers:
+            new_dict[str(header).upper()] = _get_col_values(ws, header, end_row)
 
-    if horizontal_headers:
-        # Dados em colunas:
-        stop_values = horizontal_headers + vertical_headers
+    # Prerações:
+    for header in new_dict:
+        new_dict[header] = get_uppercase_list(new_dict[header])
 
-        for header in vertical_headers:
-            key = str(header).upper()
-            
-            if key in new_dict and isinstance(new_dict[key], list):
-                if not None in new_dict[key]:
-                    stop_values.extend(new_dict[key])
-        
-        for header in horizontal_headers:
-            new_dict[str(header).upper()] = _get_col_values(ws, header, stop_values)
+    return new_dict
+
+#|--------------------------------------------------------------|
+# Tabela organizada em "LINHAS":
+def spreadsheet_rows_to_dict(
+        file_path: str,
+        ws_name: str,
+        headers: list,
+        end_col: int = None
+) -> dict:
+    '''
+    Recebe um arquivo do tipo xlsx, xls, Excel ou arquivos CSV e converte para um dicionário. Identifica automaticamente os dados de acordo com a posição dos cabeçalhos.
+    '''
+    allowed_extensions = ['xlsx', 'xls', 'csv']
+    new_dict = {}
+
+    # Validações:
+    if not is_valid_file_path(file_path, allowed_extensions):
+        raise FileNotFoundError('Caminho do arquivo ou extensão invalida.')
+    
+    if not headers:
+        raise ValueError('É necessario informar ao menos um dos cabeçalhos (headers).')
+    
+    if has_duplicates(headers):
+        raise ValueError('Não pode haver mais de um cabeçalho (header) com o mesmo nome.')
+    
+    # Buscar dados:
+    wb = load_workbook(file_path, data_only=True)
+    ws = wb[ws_name]
+
+    for header in headers:
+            new_dict[str(header).upper()] = _get_row_values(ws, header, end_col)
 
     # Prerações:
     for header in new_dict:
@@ -143,12 +177,13 @@ def spreadsheet_to_dict(
 #|--------------------------------------------------------------|
 if __name__ == '__main__':
     # Configurações:
-    file_path = 'C:\\Users\\leand\\Documents\\PROJETOS\\spreadsheet-to-dict-converter\\TESTE.xlsx'
+    file_path = 'TESTE.xlsx'
     sheet_name = 'teste'
     horizontal_headers = ['Nome', 'Valor']
     vertical_headers = ['Total']
 
     # Execução:
-    dict = spreadsheet_to_dict(file_path, sheet_name, horizontal_headers, vertical_headers)
+    dict_data = spreadsheet_cols_to_dict(file_path, sheet_name, horizontal_headers, 7)
+    dict_totals = spreadsheet_rows_to_dict(file_path, sheet_name, vertical_headers)
 
-    print(dict)
+    print(dict_data, '\n')
